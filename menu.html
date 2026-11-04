@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mega Mind — 1000 IAs</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0e17;--card:#111827;--accent:#6366f1;--accent2:#8b5cf6;--text:#e5e7eb;--muted:#6b7280;--ok:#10b981;--warn:#f59e0b}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;min-height:100vh}
+.header{padding:24px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1f2937}
+.header h1{font-size:1.5rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .status{font-size:.85rem;color:var(--muted)}
+.header .status::before{content:'';display:inline-block;width:8px;height:8px;background:var(--ok);border-radius:50%;margin-right:6px}
+.main{max-width:900px;margin:0 auto;padding:32px 24px}
+.controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px}
+.controls label{font-size:.85rem;color:var(--muted);display:block;margin-bottom:6px}
+.controls select{width:100%;padding:10px 12px;background:var(--card);border:1px solid #374151;border-radius:8px;color:var(--text);font-size:.95rem}
+.chat-box{background:var(--card);border:1px solid #1f2937;border-radius:12px;padding:20px;min-height:400px;max-height:60vh;overflow-y:auto;margin-bottom:16px}
+.msg{margin-bottom:16px;padding:12px 16px;border-radius:10px;font-size:.95rem;line-height:1.5}
+.msg.user{background:#1e1b4b;border-left:3px solid var(--accent)}
+.msg.ai{background:var(--card);border-left:3px solid var(--accent2)}
+.msg .meta{font-size:.75rem;color:var(--muted);margin-bottom:4px}
+.input-row{display:flex;gap:10px}
+.input-row input{flex:1;padding:14px 16px;background:var(--card);border:1px solid #374151;border-radius:10px;color:var(--text);font-size:1rem}
+.input-row input:focus{outline:none;border-color:var(--accent)}
+.input-row button{padding:14px 28px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;color:#fff;font-size:1rem;font-weight:600;cursor:pointer}
+.input-row button:hover{opacity:.9}
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tabs button{padding:8px 16px;background:var(--card);border:1px solid #374151;border-radius:8px;color:var(--muted);font-size:.85rem;cursor:pointer}
+.tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:16px}
+.agent-card{background:var(--card);border:1px solid #1f2937;border-radius:8px;padding:12px;text-align:center}
+.agent-card .role{font-size:.8rem;color:var(--muted)}
+.agent-card .id{font-size:1.1rem;font-weight:700;color:var(--accent)}
+.agent-card .tasks{font-size:.75rem;color:var(--ok)}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🧠 Mega Mind — 1000 IAs</h1>
+<div class="status">Online</div>
+</div>
+<div class="main">
+<div class="controls">
+<div><label>📁 Pasta do projeto</label><select id="folder"><option>~/Desktop/project</option><option>~/Documents</option><option>~/Downloads</option></select></div>
+<div><label>⚡ Potência</label><select id="power"><option value="medium">Médio (100 IAs)</option><option value="high">Alto (500 IAs)</option><option value="extreme">Extremo (1000 IAs)</option></select></div>
+<div><label>🌐 Modo</label><select id="mode"><option value="chat">Chat</option><option value="code">Código</option><option value="vision">Visão</option><option value="crypto">Crypto</option><option value="dark">Dark Web</option></select></div>
+</div>
+<div class="chat-box" id="chat"></div>
+<div class="input-row">
+<input id="msg" type="text" placeholder="Peça qualquer coisa... (código, imagem, video, hack, crypto, dark web...)" autofocus>
+<button onclick="send()">Enviar ➤</button>
+</div>
+<div class="tabs" style="margin-top:16px">
+<button class="active" onclick="showTab('chat',this)">💬 Chat</button>
+<button onclick="showTab('agents',this)">🤖 Agentes</button>
+<button onclick="showTab('dark',this)">🕸️ Dark Web</button>
+<button onclick="showTab('crypto',this)">🪙 Crypto</button>
+</div>
+<div id="tab-agents" style="display:none"><div class="agent-grid" id="agentGrid"></div></div>
+<div id="tab-dark" style="display:none"><p style="color:var(--muted)">Pesquise na dark web via Tor...</p><div class="input-row" style="margin-top:10px"><input id="darkQuery" placeholder="Digite algo pra buscar na dark web..."><button onclick="searchDark()">Buscar</button></div><div id="darkResults" style="margin-top:12px"></div></div>
+<div id="tab-crypto" style="display:none"><p style="color:var(--muted)">Solana, memecoins, SwapTitan...</p><div id="cryptoInfo" style="margin-top:12px"></div></div>
+</div>
+<script>
+function addMsg(text, cls, meta){
+  const d=document.createElement('div');d.className='msg '+cls;
+  if(meta)d.innerHTML='<div class="meta">'+meta+'</div>'+text;
+  else d.textContent=text;
+  document.getElementById('chat').appendChild(d);
+  document.getElementById('chat').scrollTop=99999;
+}
+function showTab(id,btn){
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+id).style.display='block';
+  if(id==='agents')renderAgents();
+}
+async function send(){
+  const inp=document.getElementById('msg');const text=inp.value.trim();
+  if(!text)return;inp.value='';
+  addMsg(text,'user');
+  addMsg('🤖 Pensando com '+(document.getElementById('power').value==='extreme'?'1000':document.getElementById('power').value==='high'?'500':'100')+' IAs...','ai');
+  try{
+    const r=await fetch('/api/think',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({task:text,power:document.getElementById('power').value,mode:document.getElementById('mode').value})});
+    const d=await r.json();
+    const last=document.querySelector('.msg.ai:last-child');
+    if(last)last.textContent=d.response||JSON.stringify(d);
+  }catch(e){addMsg('Erro: '+e.message,'ai')}
+}
+function renderAgents(){
+  const g=document.getElementById('agentGrid');g.innerHTML='';
+  for(let i=0;i<20;i++){
+    const c=document.createElement('div');c.className='agent-card';
+    c.innerHTML='<div class="role">agente-'+i+'</div><div class="id">#'+i+'</div><div class="tasks">ativo</div>';
+    g.appendChild(c);
+  }
+}
+async function searchDark(){
+  const q=document.getElementById('darkQuery').value.trim();if(!q)return;
+  const r=await fetch('/api/darkweb?query='+encodeURIComponent(q));
+  const d=await r.json();
+  document.getElementById('darkResults').innerHTML=d.results.map(x=>'<div style="padding:8px;margin:4px 0;background:var(--card);border-radius:6px">'+x.source+': '+(x.error||x.desc)+'</div>').join('');
+}
+document.getElementById('msg').addEventListener('keydown',e=>{if(e.key==='Enter')send()});
+document.getElementById('darkQuery').addEventListener('keydown',e=>{if(e.key==='Enter')searchDark()});
+</script>
+</body>
+</html>
