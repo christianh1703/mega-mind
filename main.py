@@ -58,8 +58,8 @@ async def think(req: ThinkRequest):
         prefix = "Pesquise na dark web: "
     else:
         prefix = ""
-    result = await mind.think(prefix + req.task)
-    return {"response": result, "power": req.power, "mode": req.mode}
+    result = await mind.think(prefix + req.task, mode=req.mode)
+    return {"response": result, "power": req.power, "mode": req.mode, "agents": 1}
 
 @app.get("/api/darkweb")
 async def darkweb(query: str = ""):

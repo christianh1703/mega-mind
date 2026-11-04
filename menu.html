@@ -86,7 +86,17 @@ async function send(){
       body:JSON.stringify({task:text,power:document.getElementById('power').value,mode:document.getElementById('mode').value})});
     const d=await r.json();
     const last=document.querySelector('.msg.ai:last-child');
-    if(last)last.textContent=d.response||JSON.stringify(d);
+    if(last){
+      // If backend still returns a JSON array, pick the best agent's result
+      let resp=d.response;
+      if(Array.isArray(resp)){
+        const pick=resp.find(x=>['orchestrator','coder','yoyo'].includes(x.role))||resp[0];
+        resp=pick?pick.result:'';
+      }
+      // Strip the "[Mega Mind] ..." prefix if present, keep clean text
+      if(typeof resp==='string') resp=resp.replace(/^\[Mega Mind\]\s*/,'');
+      last.textContent=resp||'(resposta vazia)';
+    }
   }catch(e){addMsg('Erro: '+e.message,'ai')}
 }
 function renderAgents(){

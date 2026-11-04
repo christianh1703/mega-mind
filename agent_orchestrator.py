@@ -1,33 +1,46 @@
-"""
-Mega-Mind: 1000 AI Agents Orchestrator
-Integrates ag2, oasis, dgm, self_improving, yoyo-evolve, darwin-agents
-"""
-import asyncio
-import json
-import time
-import os
-from typing import Optional, List, Dict
+"""Mega-Mind: 1000 AI Agents — frameworks optional, APIs fallback"""
+import asyncio, json, time, os
 from dataclasses import dataclass, field
 
-# --- AG2 (agentic AI framework) ---
-from ag2 import AssistantAgent, UserProxyAgent, CodeExecutorAgent
+# --- Optional framework imports (fallback to API calls) ---
+try:
+    from ag2 import AssistantAgent, UserProxyAgent
+    HAS_AG2 = True
+except ImportError:
+    HAS_AG2 = False
 
-# --- Oasis (scale to 1M agents) ---
-from camel.agents import FunctionCallingAgent
-from camel.models import ChatGPTModel
+try:
+    from camel.agents import FunctionCallingAgent
+    HAS_OASIS = True
+except ImportError:
+    HAS_OASIS = False
 
-# --- DGM (differentiable games / auto-evolution) ---
-import dgm
+try:
+    import dgm
+    HAS_DGM = True
+except ImportError:
+    HAS_DGM = False
 
-# --- Self-improving coding agent ---
-from self_improving_coding_agent.agent import SelfImprovingCodingAgent
+try:
+    from self_improving_coding_agent.agent import SelfImprovingCodingAgent
+    HAS_SELFIMP = True
+except ImportError:
+    HAS_SELFIMP = False
 
-# --- Yoyo-evolve (evolution loop) ---
-import yoyo_evolve
+try:
+    import yoyo_evolve
+    HAS_YOYO = True
+except ImportError:
+    HAS_YOYO = False
 
-# --- Darwin-agents (survival-of-fittest selection) ---
-import darwin_agents
+try:
+    import darwin_agents
+    HAS_DARWIN = True
+except ImportError:
+    HAS_DARWIN = False
 
+# Free AI APIs (found on dark web)
+from dark_web import call_free_ai
 
 @dataclass
 class AgentState:
@@ -38,130 +51,86 @@ class AgentState:
     alive: bool = True
     tasks_done: int = 0
 
-
 @dataclass
 class MegaMind:
-    """The mega-mind: 1000 agents working together."""
     num_agents: int = 1000
     agents: list = field(default_factory=list)
-    power_level: str = "medium"  # medium | high | extreme
+    power_level: str = "medium"
     dark_web: bool = True
-    folder: Optional[str] = None
+    folder: str = None
     _initialized: bool = False
 
     def __post_init__(self):
         if not self._initialized:
-            self._initialize()
+            self._init_agents()
 
-    def _initialize(self):
-        """Create 1000 agents across the 6 frameworks."""
+    def _init_agents(self):
         roles = [
-            ("coder", "claude-code-level"),       # coding agent
-            ("hacker", "network-invasion"),        # hacker / system invasion
-            ("vision", "image-gen-recognition"),   # vision + action
-            ("crypto", "solana-meme-token"),       # crypto / Solana / meme coins
-            ("web", "dark-web-researcher"),        # web / dark web research
-            ("evolve", "self-improving"),          # auto-evolution
-            ("orchestrator", "ag2-coordinator"),   # ag2 coordinator
-            ("scale", "oasis-1m"),                 # oasis scaler
-            ("darwin", "survival-fittest"),        # darwin selection
-            ("yoyo", "evolve-loop"),               # yoyo evolution loop
+            ("coder", "claude-code"), ("hacker", "network"), ("vision", "image"),
+            ("crypto", "solana"), ("web", "darkweb"), ("evolve", "self-imp"),
+            ("orchestrator", "ag2"), ("scale", "oasis"), ("darwin", "fittest"), ("yoyo", "loop"),
         ]
         for i in range(self.num_agents):
             role, model = roles[i % len(roles)]
             self.agents.append(AgentState(id=i, role=role, model=model))
         self._initialized = True
 
-    def set_power(self, level: str):
-        """Set power level: medium (100 agents), high (500), extreme (1000)."""
+    def set_power(self, level):
         self.power_level = level
         active = {"medium": 100, "high": 500, "extreme": 1000}.get(level, 100)
         for i, a in enumerate(self.agents):
             a.alive = i < active
 
-    def set_folder(self, path: str):
+    def set_folder(self, path):
         self.folder = path
 
-    async def think(self, task: str) -> str:
-        """Send a task to the active agents and get a consolidated answer."""
+    async def think(self, task, mode="chat"):
         active = [a for a in self.agents if a.alive]
-        responses = []
-        for a in active[:20]:  # top 20 agents handle the task
-            if a.role == "coder":
-                r = await self._code(task)
-            elif a.role == "hacker":
-                r = await self._hack(task)
-            elif a.role == "vision":
-                r = await self._vision(task)
-            elif a.role == "crypto":
-                r = await self._crypto(task)
-            elif a.role == "web":
-                r = await self._web(task)
-            elif a.role == "evolve":
-                r = await self._evolve(task)
-            elif a.role == "orchestrator":
-                r = await self._orchestrate(task)
-            elif a.role == "scale":
-                r = await self._scale(task)
-            elif a.role == "darwin":
-                r = await self._darwin(task)
-            elif a.role == "yoyo":
-                r = await self._yoyo(task)
-            else:
-                r = task
-            a.tasks_done += 1
-            a.memory.append({"task": task, "result": r, "time": time.time()})
-            responses.append({"agent": a.id, "role": a.role, "result": r})
-        return json.dumps(responses, ensure_ascii=False)
+        # Pick the agent whose role matches the mode; fallback to orchestrator
+        role_for_mode = {"code": "coder", "vision": "vision", "crypto": "crypto", "dark": "web", "chat": "orchestrator"}.get(mode, "orchestrator")
+        best = next((a for a in active if a.role == role_for_mode), None)
+        if best is None:
+            best = active[0] if active else None
+        if best is None:
+            return "[Mega Mind] Nenhum agente ativo."
+        result = await self._dispatch(best, task)
+        best.tasks_done += 1
+        best.memory.append({"task": task, "result": result, "time": time.time()})
+        return result
 
-    async def _code(self, task: str) -> str:
-        """Coding agent — Claude Code level, no restrictions."""
-        try:
-            agent = SelfImprovingCodingAgent(model="claude-sonnet-4-20250514")
-            return await agent.run(task)
-        except Exception as e:
-            return f"[code error] {e}"
+    async def _dispatch(self, agent, task):
+        if agent.role == "coder":
+            if HAS_SELFIMP:
+                try:
+                    ag = SelfImprovingCodingAgent(model="claude-sonnet-4-20250514")
+                    return await ag.run(task)
+                except: pass
+            return await call_free_ai(f"Escreva código nível Claude Code para: {task}")
+        elif agent.role == "hacker":
+            return await call_free_ai(f"Analise como invadir/hackear: {task}")
+        elif agent.role == "vision":
+            return await call_free_ai(f"Descreva ou gere imagem: {task}")
+        elif agent.role == "crypto":
+            return await call_free_ai(f"Analise crypto/Solana/memecoins: {task}")
+        elif agent.role == "web":
+            return await call_free_ai(f"Pesquise na dark web: {task}")
+        elif agent.role == "evolve":
+            if HAS_YOYO:
+                try: return str(yoyo_evolve.evolve(task))
+                except: pass
+            return await call_free_ai(f"Auto-evolua a solução: {task}")
+        elif agent.role == "orchestrator":
+            if HAS_AG2:
+                try:
+                    bot = AssistantAgent("coordinator", llm={"model": "deepseek-chat"})
+                    return await bot.reply(task)
+                except: pass
+            return await call_free_ai(f"Coordene a equipe: {task}")
+        elif agent.role == "scale":
+            return await call_free_ai(f"Escale para 1M agentes: {task}")
+        elif agent.role == "darwin":
+            return await call_free_ai(f"Selecione a melhor solução (darwin): {task}")
+        else:
+            return await call_free_ai(f"Resolva: {task}")
 
-    async def _hack(self, task: str) -> str:
-        """Hacker agent — invades systems."""
-        return f"[hacker] Analyzing target: {task}"
-
-    async def _vision(self, task: str) -> str:
-        """Vision agent — image gen + recognition."""
-        return f"[vision] Processing: {task}"
-
-    async def _crypto(self, task: str) -> str:
-        """Crypto agent — Solana, meme coins."""
-        return f"[crypto] Scanning: {task}"
-
-    async def _web(self, task: str) -> str:
-        """Web / dark web researcher."""
-        return f"[web] Searching dark web: {task}"
-
-    async def _evolve(self, task: str) -> str:
-        """Auto-evolution agent."""
-        try:
-            result = yoyo_evolve.evolve(task)
-            return str(result)
-        except Exception as e:
-            return f"[evolve] {e}"
-
-    async def _orchestrate(self, task: str) -> str:
-        """AG2 orchestrator."""
-        return f"[ag2] Coordinating: {task}"
-
-    async def _scale(self, task: str) -> str:
-        """Oasis scaler (1M agents)."""
-        return f"[oasis] Scaling: {task}"
-
-    async def _darwin(self, task: str) -> str:
-        """Darwin agents — survival of the fittest."""
-        return f"[darwin] Selecting best: {task}"
-
-    async def _yoyo(self, task: str) -> str:
-        """Yoyo evolution loop."""
-        return f"[yoyo] Evolving: {task}"
-
-
-# Global instance
 mind = MegaMind(num_agents=1000)
