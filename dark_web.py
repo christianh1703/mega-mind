@@ -6,6 +6,12 @@ TOR_PROXY = "http://127.0.0.1:9050"
 
 # IAs grátis (clearnet — NÃO passam por Tor, é mais rápido)
 FREE_AIS = [
+    # IAs da dark web (.onion) — passam pelo Tor, sem censura
+    {"name": "Evoke-Dark", "url": "http://evokeq7arvd7tmguz2y2aovgy4ar5pwi2ncrfxb3n63r2vxmbzo5plad.onion/api/v1/chat/completions",
+     "key": os.getenv("EVOKE_KEY", ""), "model": "evoke-ai/uncensored:free", "tor": True},
+    {"name": "UncensoredAI", "url": "https://uncensoredai.dev/v1/chat/completions",
+     "key": os.getenv("UNCENSORED_KEY", ""), "model": "deepseek-v4-pro-uncensored", "tor": True},
+    # IAs clearnet — sem Tor, mais rápido
     {"name": "HuggingFace", "url": "https://api-inference.huggingface.co/v1/chat/completions",
      "key": os.getenv("HF_TOKEN", ""), "model": "meta-llama/Llama-3.2-3B-Instruct"},
     {"name": "DeepSeek", "url": "https://api.deepseek.com/v1/chat/completions",
@@ -49,13 +55,13 @@ async def query_dark_web(query):
     return results
 
 async def call_free_ai(prompt, power="medium"):
-    n = {"medium": 2, "high": 3, "extreme": 4}.get(power, 2)
+    n = {"medium": 3, "high": 4, "extreme": 4}.get(power, 3)
     for ai in FREE_AIS[:n]:
         if not ai["key"]:
             continue
         try:
-            # clearnet: SEM proxy Tor (mais rápido e confiável)
-            async with httpx.AsyncClient(timeout=60) as client:
+            proxy = TOR_PROXY if ai.get("tor") else None
+            async with httpx.AsyncClient(proxy=proxy, timeout=60) as client:
                 r = await client.post(ai["url"],
                     headers={"Authorization": f"Bearer {ai['key']}", "Content-Type": "application/json"},
                     json={"model": ai["model"], "messages": [{"role": "user", "content": prompt}], "max_tokens": 2048})
@@ -63,4 +69,4 @@ async def call_free_ai(prompt, power="medium"):
                     return r.json()["choices"][0]["message"]["content"]
         except Exception:
             pass
-    return f"[Mega Mind] {prompt} → (nenhuma IA respondeu — configure OPENROUTER_KEY ou DEEPSEEK_KEY na nuvem)"
+    return f"[Mega Mind] {prompt} → (nenhuma IA respondeu — configure EVOKE_KEY, HF_TOKEN ou DEEPSEEK_KEY na nuvem)"
