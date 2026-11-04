@@ -8,7 +8,7 @@ TOR_PROXY = "http://127.0.0.1:9050"
 FREE_AIS = [
     # PRIMEIRA — grátis, sem moeda, sem limite (funciona já!)
     {"name": "OpenRouter", "url": "https://openrouter.ai/api/v1/chat/completions",
-     "key": os.getenv("OPENROUTER_KEY", ""), "model": "meta-llama/llama-3.3-70b-instruct:free"},
+     "key": os.getenv("OPENROUTER_KEY", ""), "model": "google/gemma-4-31b-it:free"},
     # IAs da dark web (.onion) — passam pelo Tor, sem censura
     {"name": "Evoke-Dark", "url": "http://evokeq7arvd7tmguz2y2aovgy4ar5pwi2ncrfxb3n63r2vxmbzo5plad.onion/api/v1/chat/completions",
      "key": os.getenv("EVOKE_KEY", ""), "model": "evoke-ai/uncensored:free", "tor": True},
